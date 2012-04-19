@@ -28,6 +28,7 @@ public class GammaCorrection {
             cvCvtColor(img, gray, CV_RGB2GRAY);
         }
         
+        //pixelintensiteit van alle pixels opslaan in een array
         BufferedImage buffGray = gray.getBufferedImage();
         double grayArr[]=new double[gray.width()*gray.height()];
         int counter=0;
