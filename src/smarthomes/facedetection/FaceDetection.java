@@ -4,20 +4,24 @@
  */
 package smarthomes.facedetection;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import static com.googlecode.javacv.cpp.opencv_core.*;
 import static com.googlecode.javacv.cpp.opencv_imgproc.*;
 import static com.googlecode.javacv.cpp.opencv_objdetect.*;
+import static com.googlecode.javacv.cpp.opencv_highgui.*;
 
 public class FaceDetection {
  
     // The cascade definition to be used for detection.
     //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt_tree.xml";
-    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt2.xml";
+    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt2.xml";
     //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt.xml";
     //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_default.xml";
-    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_profileface.xml";
+    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_profileface.xml";
     
     private IplImage grayImage, originalImage;
     private CvMemStorage storage;
@@ -87,6 +91,7 @@ public class FaceDetection {
         //We iterate over the discovered faces and draw yellow rectangles around them.
         for (int i = 0; i < faces.total(); i++) {
           CvRect r = new CvRect(cvGetSeqElem(faces, i));
+          //cropImage(rgb, originalImage, r.y()-5, r.x()-5, r.width()+10, r.height()+10);
           cvRectangle(originalImage, cvPoint(r.x(), r.y()),
           cvPoint(r.x() + r.width(), r.y() + r.height()), CvScalar.WHITE, 1, CV_AA, 0);
         }
@@ -97,5 +102,31 @@ public class FaceDetection {
         result.put("hasFaces",(faces.total() > 0)?true:false);
             
         return result;
+    }
+    
+    
+    public void cropImage(boolean rgb, IplImage img, int cTop, int cLeft, int cWidth, int cHeight){
+        try {            
+            // create destination image
+            IplImage iplCrop;
+            if(rgb)
+                iplCrop = IplImage.create(cWidth, cHeight, IPL_DEPTH_8U, 3);
+            else
+                iplCrop = IplImage.create(cWidth, cHeight, IPL_DEPTH_8U, 1);
+            
+            //Set ROI
+            cvSetImageROI(img, cvRect(cLeft, cTop, cWidth, cHeight));
+
+            /* copy subimage */
+            cvCopy(img, iplCrop);
+
+            /* reset the Region of Interest */
+            cvResetImageROI(img);
+            
+            Date date= new Date();
+            cvSaveImage("faces/cropped_face/cropped_face_"+date.getTime()+".jpg", iplCrop);
+        } catch (Exception ex){
+            Logger.getLogger(FaceDetection.class.getName()).log(Level.SEVERE, null, ex + "left:"+cLeft+",top:"+cTop+",width:"+cWidth+",height:"+cHeight);
+        }
     }
 }

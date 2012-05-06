@@ -18,7 +18,7 @@ public class EyeDetectionTester {
     private static boolean drawRGB = true;
             
     public static void main(String[] args) {
-        File dir = new File("faces/eyetestfiles/");
+        File dir = new File("faces/highres_rgb_testfiles/");
         String[] files = dir.list();
         for(int i=0;i<files.length;i++){
             File f = new File(dir,files[i]);
@@ -32,19 +32,13 @@ public class EyeDetectionTester {
     private static void detectEyes(IplImage img, File f){
         try{
             boolean hasFace = false;
-            BufferedWriter out = new BufferedWriter(new FileWriter("results.txt", true));            
-            
-            /*//Run a first face detection algorithm
-            final DetectFace detect = new DetectFace(img.getBufferedImage());
-            hasFace = detect.detectFaces();
-            img = IplImage.createFrom(detect.getImg());*/
+            BufferedWriter out = new BufferedWriter(new FileWriter("eyes/results.txt", true));
             
             double[] scales = new double[]{1.05,1.1,1.15,1.20,1.25};
             int[] neighbours = new int[]{3,5,10,20};
             int[] sizes = new int[]{0,10,20,30};
             
             //Run a second face detection algorithm if the first one didn't find anything
-            //if(!hasFace){
             EyeDetection edetect = new EyeDetection();
             for(int i=0;i<scales.length;i++){
                 for(int j=0;j<neighbours.length;j++){
@@ -66,19 +60,6 @@ public class EyeDetectionTester {
                 }
             }
             out.close();
-                
-            //}
-            
-            /*int user = Integer.parseInt(f.getName().split("_")[2]);
-            //Save ROI
-            //if(hasFace){
-                cvSaveImage("faces/detected/"+f.getName(), img);
-            }else{
-                if(advFaceDetectionThread == null || !advFaceDetectionThread.isAlive()){
-                    advFaceDetectionThread = new Thread(new AdvancedFaceDetection(img,drawRGB,user));
-                    advFaceDetectionThread.start();
-                }
-            }*/
         }catch (Exception ex) {
             Logger.getLogger(EyeDetectionTester.class.getName()).log(Level.SEVERE, null, ex);
         }

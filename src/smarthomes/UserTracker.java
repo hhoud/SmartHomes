@@ -499,10 +499,10 @@ public class UserTracker extends Component
             writeToFile(""+elapsedTime);
             
             //Perform automatic gamma correction
-            /*GammaCorrection gc = new GammaCorrection();
+            GammaCorrection gc = new GammaCorrection();
             iplCrop = gc.correctGamma(iplCrop, drawRGB);
             
-            boolean hasFace=false;*/
+            boolean hasFace=false;
             //Run a first face detection algorithm
             /*final DetectFace detect = new DetectFace(iplCrop.getBufferedImage());
             hasFace = detect.detectFaces();
@@ -518,9 +518,8 @@ public class UserTracker extends Component
             
             //Save ROI
             //if(hasFace){
-                /*Date date= new Date();
-                cvSaveImage("faces/full_user_"+user+"_"+date.getTime()+".jpg", (drawRGB)?iplBgrImage:new IplImage().createFrom(irImage));
-                cvSaveImage("faces/face_user_"+user+"_"+date.getTime()+".jpg", iplCrop);*/
+                Date date= new Date();
+                cvSaveImage("faces/face_user_"+user+"_"+date.getTime()+".jpg", iplCrop);
             /*}else{
                 if(advFaceDetectionThread == null || !advFaceDetectionThread.isAlive()){
                     advFaceDetectionThread = new Thread(new AdvancedFaceDetection(iplCrop,drawRGB,user));
@@ -615,17 +614,18 @@ public class UserTracker extends Component
                     userPix = false;
                 }
             }
-            bottom = (int) depthGen.convertRealWorldToProjective(neckPoint).getY();
+            //bottom = (int) depthGen.convertRealWorldToProjective(neckPoint).getY();
+            bottom = (int) neckPoint.getY();
             bottom = (bottom<0)?0:bottom;
         }
 
         //g.setColor(Color.RED);
         //g.drawRect(left-10, top-10, right-left+20, bottom-top+20);
-
+        
         if(highRes)
-            cropImage(2*(top+10), (int)Math.round(2.13*(left-20)), (int)Math.round(2.13*(right-left+40)), 2*(bottom-top+40), user);
+            cropImage(2*(top), 2*(left-20), 2*(right-left+30), 2*(bottom-top-30), user);
         else
-            cropImage((top+10), (left-20), (right-left+40), (bottom-top+40), user);
+            cropImage((top), (left-20), (right-left+30), (bottom-top-30), user);
     }
     
     

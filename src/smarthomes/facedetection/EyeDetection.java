@@ -16,10 +16,10 @@ import static com.googlecode.javacv.cpp.opencv_imgproc.*;
  */
 public class EyeDetection {
     // The cascade definition to be used for detection.
-    private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/ojoD.xml";
+    //private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/ojoD.xml";
     //private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_eye.xml";
     //private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_mcs_lefteye.xml";
-    //private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_mcs_righteye.xml";
+    private static final String CASCADE_FILE = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_mcs_righteye.xml";
             
     private IplImage grayImage, originalImage;
     private CvMemStorage storage;
