@@ -17,11 +17,7 @@ import static com.googlecode.javacv.cpp.opencv_highgui.*;
 public class FaceDetection {
  
     // The cascade definition to be used for detection.
-    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt_tree.xml";
-    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt2.xml";
-    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt.xml";
-    //private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_default.xml";
-    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_profileface.xml";
+    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt2.xml";
     
     private IplImage grayImage, originalImage;
     private CvMemStorage storage;

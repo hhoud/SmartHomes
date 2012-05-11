@@ -32,18 +32,20 @@ import java.util.logging.Logger;
 import org.OpenNI.*;
 
 import java.nio.ShortBuffer;
+import java.util.Map;
+import java.util.Date;
 import java.util.HashMap;
 import java.awt.*;
 import java.awt.color.ColorSpace;
 import java.awt.image.*;
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Date;
+import javax.imageio.ImageIO;
 import smarthomes.facedetection.AdvancedFaceDetection;
-import smarthomes.facedetection.DetectFace;
-import smarthomes.facedetection.FaceDetection;
+import smarthomes.facedetection.EyeDetection;
 
 public class UserTracker extends Component
 {
@@ -159,6 +161,8 @@ public class UserTracker extends Component
     private boolean printID = false;
     private boolean printState = false;
     private boolean highRes = false;
+    private boolean mustFind = false;
+    private String[] userCoordinates = new String[3];
     
     private BufferedImage bimg;
     private BufferedImage irImage = null;
@@ -203,6 +207,20 @@ public class UserTracker extends Component
         } catch (GeneralException ex) {
             Logger.getLogger(UserTracker.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+    
+    /**
+     * @return the mustFind
+     */
+    public boolean isMustFind() {
+        return mustFind;
+    }
+
+    /**
+     * @param mustFind the mustFind to set
+     */
+    public void setMustFind(boolean mustFind) {
+        this.mustFind = mustFind;
     }
     
     private void setObservers(){
@@ -307,20 +325,22 @@ public class UserTracker extends Component
     {
         if(!drawRGB){
             try {
-                ShortBuffer irSB = irGen.getIRMap().createShortBuffer();
-                // scan the IR data, storing the min and max values
-                int minIR = irSB.get();
-                int maxIR = minIR;
-                while (irSB.remaining() > 0) {
-                    int irVal = irSB.get();
-                    if (irVal > maxIR)
-                        maxIR = irVal;
-                    if (irVal < minIR)
-                        minIR = irVal;
+                if(irGen != null){
+                    ShortBuffer irSB = irGen.getIRMap().createShortBuffer();
+                    // scan the IR data, storing the min and max values
+                    int minIR = irSB.get();
+                    int maxIR = minIR;
+                    while (irSB.remaining() > 0) {
+                        int irVal = irSB.get();
+                        if (irVal > maxIR)
+                            maxIR = irVal;
+                        if (irVal < minIR)
+                            minIR = irVal;
+                    }
+                    irSB.rewind();
+                    // convert the IR values into 8-bit grayscales
+                    irImage = createGrayIm(irSB, minIR, maxIR);
                 }
-                irSB.rewind();
-                // convert the IR values into 8-bit grayscales
-                irImage = createGrayIm(irSB, minIR, maxIR);
             }
             catch(GeneralException e)
             { System.out.println(e); }
@@ -426,9 +446,19 @@ public class UserTracker extends Component
     public void drawSkeleton(Graphics g, int user) throws StatusException
     {
     	getJoints(user);
-    	/*HashMap<SkeletonJoint, SkeletonJointPosition> dict = joints.get(new Integer(user));
+    	HashMap<SkeletonJoint, SkeletonJointPosition> dict = joints.get(new Integer(user));
 
-    	drawLine(g, dict, SkeletonJoint.HEAD, SkeletonJoint.NECK);
+        //Send person present to reasoning module
+        EnvironmentVars.getInstance().setPersonPresent(true);
+        
+        //Send coordinates to reasoning module
+        SkeletonJointPosition headPos = joints.get(new Integer(user)).get(SkeletonJoint.HEAD);
+        int x = (int)headPos.getPosition().getX();
+        int y = (int)headPos.getPosition().getY();
+        int z = (int)headPos.getPosition().getZ();
+        EnvironmentVars.getInstance().setPersonPosition(new int[]{x,y,z});
+        
+    	/*drawLine(g, dict, SkeletonJoint.HEAD, SkeletonJoint.NECK);
 
     	drawLine(g, dict, SkeletonJoint.LEFT_SHOULDER, SkeletonJoint.TORSO);
     	drawLine(g, dict, SkeletonJoint.RIGHT_SHOULDER, SkeletonJoint.TORSO);
@@ -452,7 +482,6 @@ public class UserTracker extends Component
     	drawLine(g, dict, SkeletonJoint.RIGHT_KNEE, SkeletonJoint.RIGHT_FOOT);*/
     }
     
-    long start;
     private void writeToFile(String text){
         BufferedWriter out = null;
         try {
@@ -470,8 +499,49 @@ public class UserTracker extends Component
         }
     }
     
-    public void cropImage(int cTop, int cLeft, int cWidth, int cHeight, int user){
-        try {            
+    private void analyseImage(IplImage iplCrop, int user){
+        Date date= new Date();
+        
+        //Perform automatic gamma correction
+        GammaCorrection gc = new GammaCorrection();
+        iplCrop = gc.correctGamma(iplCrop, drawRGB);
+        
+        //For the IR image we smooth the image to remove the dot pattern of the laser
+        if(!drawRGB){
+            cvSmooth(iplCrop, iplCrop, CV_MEDIAN, 5);
+        }
+
+        boolean hasFace=false;
+        Map<String,Object> result = null;
+                
+        //Standard: Run eye detection algorithm
+        //Must find: Run advanced face detection algorithm
+        if(mustFind){
+            AdvancedFaceDetection fdetect = new AdvancedFaceDetection();
+            result = fdetect.detectFaces(iplCrop, drawRGB);
+        }else{
+            EyeDetection edetect = new EyeDetection();
+            result = edetect.detectEyes(iplRgbImage, drawRGB);
+        }
+        
+        iplCrop = (IplImage)result.get("image");
+        hasFace = (Boolean)result.get("hasFaces");
+        
+        if(hasFace){
+            try {
+                //Send the picture to the reasoning module
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(iplCrop.getBufferedImage(), "jpg", baos);
+                byte[] imageArray = baos.toByteArray();
+                EnvironmentVars.getInstance().setDetectedFace(imageArray);
+            } catch (IOException ex) {
+                Logger.getLogger(UserTracker.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+    
+    private void cropImage(int cTop, int cLeft, int cWidth, int cHeight, int user){
+        try {
             // create destination image
             IplImage iplCrop;
             if(drawRGB)
@@ -491,49 +561,13 @@ public class UserTracker extends Component
             /* reset the Region of Interest */
             cvResetImageROI(image);
             
-            //For the IR image we smooth the image to remove the dot pattern of the laser
-            if(!drawRGB)
-                cvSmooth(iplCrop, iplCrop, CV_MEDIAN, 7);
-            
-            long elapsedTime = System.nanoTime() - start;
-            writeToFile(""+elapsedTime);
-            
-            //Perform automatic gamma correction
-            GammaCorrection gc = new GammaCorrection();
-            iplCrop = gc.correctGamma(iplCrop, drawRGB);
-            
-            boolean hasFace=false;
-            //Run a first face detection algorithm
-            /*final DetectFace detect = new DetectFace(iplCrop.getBufferedImage());
-            hasFace = detect.detectFaces();
-            iplCrop = IplImage.createFrom(detect.getImg());
-            
-            //Run a second face detection algorithm if the first one didn't find anything
-            if(!hasFace){
-                FaceDetection fdetect = new FaceDetection();
-                java.util.Map<String,Object> result = fdetect.detectFaces(iplCrop, drawRGB);
-                iplCrop = (IplImage)result.get("image");
-                hasFace = (Boolean)result.get("hasFaces");
-            }*/
-            
-            //Save ROI
-            //if(hasFace){
-                Date date= new Date();
-                cvSaveImage("faces/face_user_"+user+"_"+date.getTime()+".jpg", iplCrop);
-            /*}else{
-                if(advFaceDetectionThread == null || !advFaceDetectionThread.isAlive()){
-                    advFaceDetectionThread = new Thread(new AdvancedFaceDetection(iplCrop,drawRGB,user));
-                    advFaceDetectionThread.start();
-                }
-            }*/
-/*        } catch (IOException ex) {
-            Logger.getLogger(UserTracker.class.getName()).log(Level.SEVERE, null, ex);*/
+            analyseImage(iplCrop,user);
         } catch (Exception ex){
             Logger.getLogger(UserTracker.class.getName()).log(Level.SEVERE, null, ex + "left:"+left+",top:"+top+",width:"+cWidth+",height:"+cHeight);
         }
     }
     
-    public void trackUser(Graphics g, int user) throws StatusException
+    private void trackUser(Graphics g, int user) throws StatusException
     {
         DepthMetaData depthMD = depthGen.getMetaData();
         SceneMetaData sceneMD = userGen.getUserPixels(0);
@@ -565,7 +599,7 @@ public class UserTracker extends Component
         cropImage(minY, minX, maxX-minX, maxY-minY, user);
     }
     
-    public void trackHead(Graphics g, int user) throws StatusException
+    private void trackHead(Graphics g, int user) throws StatusException
     {   
         SceneMetaData sceneMD = userGen.getUserPixels(0);
         SceneMap sceneMap = sceneMD.getData();
@@ -617,19 +651,32 @@ public class UserTracker extends Component
             //bottom = (int) depthGen.convertRealWorldToProjective(neckPoint).getY();
             bottom = (int) neckPoint.getY();
             bottom = (bottom<0)?0:bottom;
-        }
-
-        //g.setColor(Color.RED);
-        //g.drawRect(left-10, top-10, right-left+20, bottom-top+20);
+        }        
         
         if(highRes)
             cropImage(2*(top), 2*(left-20), 2*(right-left+30), 2*(bottom-top-30), user);
         else
-            cropImage((top), (left-20), (right-left+30), (bottom-top-30), user);
+            cropImage((top+15), (left-20), (right-left+30), (bottom-top-30), user);
     }
     
+    private void histogramAnalysis(){
+        CvScalar average;
+        //convert to hsv
+        if(drawRGB){
+            IplImage hsv_image = IplImage.create(imgWidth, imgHeight, IPL_DEPTH_8U, 3);
+            cvCvtColor(iplBgrImage, hsv_image, CV_RGB2HSV);
+            cvSetImageCOI(hsv_image, 3);
+            //get Average intensity
+            average = cvAvg(hsv_image, null);
+        }else{
+            average = cvAvg(IplImage.createFrom(irImage), null);
+        }
+        
+        //Send intensity value to reasoning module
+        EnvironmentVars.getInstance().setHistIntensity(average.val(0));
+    }
     
-    //CanvasFrame canvas = new CanvasFrame("Test2");
+    CanvasFrame canvas = new CanvasFrame("RGB / IR");
     public void paint(Graphics g)
     {
         counter++;
@@ -655,41 +702,48 @@ public class UserTracker extends Component
                 NativeAccess.copyToBuffer(byteBuffer, ptr, imgWidth*imgHeight*3);
                 //Convert image color
                 cvCvtColor(iplRgbImage, iplBgrImage, CV_RGB2BGR);
-                //canvas.showImage(iplBgrImage);
+                canvas.showImage(iplBgrImage);
                 byteBuffer.rewind();
                 
             } catch (GeneralException ex) {
                 Logger.getLogger(UserTracker.class.getName()).log(Level.SEVERE, null, ex);
             }
         }else{
-            //canvas.showImage(irImage);
-            /*Date date = new Date();
-            if(counter%15==0)
-                cvSaveImage("faces/full_"+date.getTime()+".jpg", (drawRGB)?iplBgrImage:new IplImage().createFrom(irImage));*/
+            canvas.showImage(irImage);
         }
         
         try
         {
+            //User cropping/analysis
             int[] users = userGen.getUsers();
-            for (int i = 0; i < users.length; ++i)
-            {
-                Color c = colors[users[i]%colors.length];
-                c = new Color(255-c.getRed(), 255-c.getGreen(), 255-c.getBlue());
+            if(users.length == 0 && mustFind){
+                //no user found but system says there is one -> force analysis on whole scene
+                analyseImage(iplBgrImage, 0);
+            }else{
+                for (int i = 0; i < users.length; ++i)
+                {
+                    //set the color of the user in the depth image
+                    Color c = colors[users[i]%colors.length];
+                    c = new Color(255-c.getRed(), 255-c.getGreen(), 255-c.getBlue());
 
-                g.setColor(c);
-                //every 15 frames (= every half second) we check the user
-                if(counter%15==0){
-                    if (drawSkeleton && skeletonCap.isSkeletonTracking(users[i]))
-                    {
-                        drawSkeleton(g, users[i]);
-                        start = System.nanoTime();
-                        trackHead(g,users[i]);
-                    }else{
-                        start = System.nanoTime();
-                        trackUser(g,users[i]);
+                    g.setColor(c);
+                    //every 15 frames (= every half second) we check the user
+                    if(counter%15==0){
+                        if (drawSkeleton && skeletonCap.isSkeletonTracking(users[i]))
+                        {
+                            //get positions of all the joints
+                            drawSkeleton(g, users[i]);
+                            trackHead(g,users[i]);
+                        }else{
+                            trackUser(g,users[i]);
+                        }
                     }
                 }
             }
+            
+            //histogram analysis
+            histogramAnalysis();
+            
         } catch (StatusException e)
         {
                 e.printStackTrace();

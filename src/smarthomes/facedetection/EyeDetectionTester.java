@@ -45,7 +45,7 @@ public class EyeDetectionTester {
                     for(int k=0;k<sizes.length;k++){
                         long start = System.nanoTime();
                         
-                        java.util.Map<String,Object> result = edetect.detectEyesTest(img, drawRGB, scales[i], neighbours[j], sizes[k]);
+                        java.util.Map<String,Object> result = null; //edetect.detectEyesTest(img, drawRGB, scales[i], neighbours[j], sizes[k]);
                         img = (IplImage)result.get("image");
                         hasFace = Boolean.parseBoolean(result.get("hasFaces").toString());
                         long elapsedTime = System.nanoTime() - start;

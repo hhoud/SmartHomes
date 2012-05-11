@@ -4,6 +4,7 @@
  */
 package smarthomes.facedetection;
 
+import com.googlecode.javacv.CanvasFrame;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -21,6 +22,7 @@ import jjil.core.RgbImage;
 import jjil.j2se.RgbImageJ2se;
 import static com.googlecode.javacv.cpp.opencv_core.*;
 import static com.googlecode.javacv.cpp.opencv_highgui.*;
+import static com.googlecode.javacv.cpp.opencv_imgproc.*;
         
 /**
  *
@@ -32,15 +34,33 @@ public class FaceDetectionTester {
     private static Thread advFaceDetectionThread;
             
     public static void main(String[] args) {
-        File dir = new File("faces/highres_rgb_testfiles/");
+        File dir = new File("faces/testir2/");
         String[] files = dir.list();
         for(int i=0;i<files.length;i++){
             File f = new File(dir,files[i]);
             if(!f.isDirectory()){
                 IplImage img = cvLoadImage(f.getPath());
                 detectFaces(img,f);
+                //imageAnalysis(img);
             }
         }
+    }
+    
+    private static void imageAnalysis(IplImage iplBgrImage){
+        //calculate average intensity
+        //convert to hsi
+        IplImage hsv_image = IplImage.create(cvSize(iplBgrImage.width(), iplBgrImage.height()), IPL_DEPTH_8U, 3);
+        cvCvtColor(iplBgrImage, hsv_image, CV_RGB2HSV);
+        cvSetImageCOI(hsv_image, 3);
+        
+        //get Average value
+        CvScalar average = cvAvg(hsv_image, null);
+        System.out.println("Average: " + average.val(0));
+
+        //Compare to threshold
+        
+        //Send intensity to reasoning module
+        
     }
     
     private static void detectFaces(IplImage img, File f){
@@ -75,75 +95,6 @@ public class FaceDetectionTester {
             }
             out.close();
                 
-        }catch (Exception ex) {
-            Logger.getLogger(FaceDetectionTester.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    private static void detectFaces2(IplImage img, File f){
-        try{
-            boolean hasFace = false;
-            BufferedWriter out = new BufferedWriter(new FileWriter("results.txt", true));
-            
-            long start = System.nanoTime();
-
-            //Run a first face detection algorithm
-            final DetectFace detect = new DetectFace(img.getBufferedImage());
-            hasFace = detect.detectFaces();
-            img = IplImage.createFrom(detect.getImg());
-            long elapsedTime = System.nanoTime() - start;
-            
-            if(hasFace)
-                cvSaveImage("faces/detected/"+f.getName()+".jpg", img);
-            
-            String success = (hasFace)?"1":"0";
-            String fname = f.getName().split("\\.")[0];
-            String text = fname+";"+elapsedTime+";"+success;
-            out.write(text);
-            out.newLine();
-            out.close();
-        }catch (Exception ex) {
-            Logger.getLogger(FaceDetectionTester.class.getName()).log(Level.SEVERE, null, ex);
-        }
-    }
-    
-    private static void detectFaces3(IplImage img, File f){
-        try{
-            boolean hasFace = false;
-            BufferedWriter out = new BufferedWriter(new FileWriter("results.txt", true));
-            
-            long start = System.nanoTime();
-
-            //Run a first face detection algorithm
-            int minScale = 1;
-            int maxScale = 40;
-            // step #2 - convert BufferedImage to JJIL Image
-            RgbImage im = RgbImageJ2se.toRgbImage(img.getBufferedImage());
-            // step #3 - convert image to greyscale 8-bits
-            RgbAvgGray toGray = new RgbAvgGray();
-            toGray.push(im);
-            // step #4 - initialise face detector with correct Haar profile
-            InputStream is  = FaceDetectionTester.class.getResourceAsStream("/jjilexample/haar/profileface.txt");
-            Gray8DetectHaarMultiScale detectHaar = new Gray8DetectHaarMultiScale(is, minScale, maxScale);
-            // step #5 - apply face detector to grayscale image
-            List results = detectHaar.pushAndReturn(toGray.getFront());
-            // step #6 - retrieve resulting face detection mask
-            Image i = detectHaar.getFront();
-            // finally convert back to RGB image to write out to .jpg file
-            Gray8Rgb g2rgb = new Gray8Rgb();
-            g2rgb.push(i);
-            long elapsedTime = System.nanoTime() - start;
-            RgbImageJ2se conv = new RgbImageJ2se();
-            conv.toFile((RgbImage)g2rgb.getFront(), "faces/detected/"+f.getName()+".jpg");
-            
-            String success = (results.size()>0)?"1":"0";
-            String fname = f.getName().split("\\.")[0];
-            String text = fname+";"+elapsedTime+";"+success;
-            out.write(text);
-            out.newLine();
-            out.close();
-        } catch (Error ex) {
-            Logger.getLogger(FaceDetectionTester.class.getName()).log(Level.SEVERE, null, ex);
         }catch (Exception ex) {
             Logger.getLogger(FaceDetectionTester.class.getName()).log(Level.SEVERE, null, ex);
         }
