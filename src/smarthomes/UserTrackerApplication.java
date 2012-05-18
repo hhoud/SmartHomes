@@ -35,16 +35,17 @@ import java.net.InetAddress;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
+import smarthomes.events.SwapViewEvent;
+import smarthomes.events.SwapViewEventListener;
 
 public class UserTrackerApplication {
 
     public static UserTracker viewer;
     private boolean shouldRun = true;
     private JFrame frame;
-    private static boolean drawRGB = true;
+    //private static boolean drawRGB = true;
     private static int lightValueCounter = 0;
     private static int darkValueCounter = 0;
-    private static int lightHistCounter = 0;
     private static int darkHistCounter = 0;
 
     public UserTrackerApplication(JFrame frame) {
@@ -63,7 +64,7 @@ public class UserTrackerApplication {
             public void keyPressed(KeyEvent arg0) {
                 if (arg0.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     shouldRun = false;
-                } else if (arg0.getKeyCode() == KeyEvent.VK_I) {
+                } /*else if (arg0.getKeyCode() == KeyEvent.VK_I) {
                     if (drawRGB) {
                         drawRGB = false;
                         viewer.setDrawRGB(drawRGB);
@@ -73,37 +74,43 @@ public class UserTrackerApplication {
                         drawRGB = true;
                         viewer.setDrawRGB(drawRGB);
                     }
-                }
+                }*/
             }
         });
     }
 
     public static void main(String s[]) {
-        JFrame f = new JFrame("OpenNI User Tracker");
-        f.addWindowListener(new WindowAdapter() {
+        try {
+            JFrame f = new JFrame("OpenNI User Tracker");
+            f.addWindowListener(new WindowAdapter() {
 
-            public void windowClosing(WindowEvent e) {
-                System.exit(0);
-            }
-        });
-        UserTrackerApplication app = new UserTrackerApplication(f);
+                public void windowClosing(WindowEvent e) {
+                    System.exit(0);
+                }
+            });
+            UserTrackerApplication app = new UserTrackerApplication(f);
 
-        //Setup for communication
-        //setupService();
-        setupListeners();
+            //Setup for communication
+            setupListeners();
+            setupService();
 
-        //Run the kinect
-        app.viewer = new UserTracker();
-        f.add("Center", app.viewer);
-        f.pack();
-        f.setVisible(true);
-        app.run();
+            Thread.sleep(40000);
+
+            //Run the kinect
+            app.viewer = new UserTracker();
+            f.add("Center", app.viewer);
+            f.pack();
+            f.setVisible(true);
+            app.run();
+        } catch (InterruptedException ex) {
+            Logger.getLogger(UserTrackerApplication.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 
     void run() {
         while (shouldRun) {
             viewer.updateDepth();
-            if (!drawRGB) {
+            if (!viewer.isDrawRGB()) {
                 viewer.updateIR();
             }
             viewer.repaint();
@@ -125,7 +132,7 @@ public class UserTrackerApplication {
             //get IP address from this machine
 
             //Create broadcast message
-            String broadcast_msg = "Sensor online, MACHash=" + macHash + ", IP=192.168.137.89";
+            String broadcast_msg = "Sensor online, MACHash=" + macHash + ", IP=192.168.2.8";
             //Create broadcast packet
             DatagramPacket broadcast_packet = new DatagramPacket(broadcast_msg.getBytes(), broadcast_msg.getBytes().length, InetAddress.getByName("255.255.255.255"), 15000);
             //Send Broadcast packet
@@ -137,36 +144,42 @@ public class UserTrackerApplication {
     }
 
     private static void setupListeners() {
-        //Setup listeners for incoming data
-        EnvironmentVars.getInstance().addPropertyChangeListener("lightValue", new LightValueChangeListener());
-        EnvironmentVars.getInstance().addPropertyChangeListener("histIntensity", new HistIntensityChangeListener());
-        EnvironmentVars.getInstance().addPropertyChangeListener("personPresent", new PersonPresentChangeListener());
-    }
 
-    static class LightValueChangeListener implements PropertyChangeListener {
 
-        @Override
-        public void propertyChange(PropertyChangeEvent e) {
-            int threshold = 400;
-            int lightValue = Integer.parseInt(e.getNewValue().toString());
-            
-            //check if the value is within the threshold long enough
-            if(lightValue < threshold){
-                lightValueCounter = 0;
-                darkValueCounter++;
-                if(darkValueCounter > 10){
-                    viewer.setDrawRGB(false);
-                    darkValueCounter = 0;
-                }
-            }else if(lightValue > threshold){
-                darkValueCounter = 0;
-                lightValueCounter++;
-                if(lightValueCounter > 10){
-                    viewer.setDrawRGB(true);
+        // Register for MyEvents from c
+        EnvironmentVars.getInstance().getSv().addMyEventListener(new SwapViewEventListener() {
+
+            @Override
+            public void swapViewEventOccured(SwapViewEvent evt) {
+                int threshold = 150;
+                int lightValue = Integer.parseInt(evt.getSource().toString());
+                System.out.println("EVENT GEVANGEN!");
+                //check if the value is within the threshold long enough
+                if (lightValue < threshold) {
                     lightValueCounter = 0;
+                    darkValueCounter++;
+                    if (darkValueCounter > 2) {
+                        if (viewer != null && viewer.isDrawRGB()) {
+                            System.out.println("Changing from RGB to IR");
+                            viewer.setDrawRGB(false);
+                        }
+                        darkValueCounter = 0;
+                    }
+                } else if (lightValue > threshold) {
+                    darkValueCounter = 0;
+                    lightValueCounter++;
+                    if (lightValueCounter > 2) {
+                        if (viewer != null && !viewer.isDrawRGB()) {
+                            System.out.println("Changing from IR to RGB");
+                            viewer.setDrawRGB(true);
+                        }
+                        lightValueCounter = 0;
+                    }
                 }
             }
-        }
+        });
+        EnvironmentVars.getInstance().addPropertyChangeListener("histIntensity", new HistIntensityChangeListener());
+        EnvironmentVars.getInstance().addPropertyChangeListener("personPresent", new PersonPresentChangeListener());
     }
 
     static class HistIntensityChangeListener implements PropertyChangeListener {
@@ -175,21 +188,13 @@ public class UserTrackerApplication {
         public void propertyChange(PropertyChangeEvent e) {
             int threshold = 40;
             int histIntensity = Integer.parseInt(e.getNewValue().toString());
-            
-            //check if the value is within the threshold long enough
-            if(histIntensity < threshold){
-                lightHistCounter = 0;
+
+            //check if the value is within the threshold long enough and change to IR if needed
+            if (histIntensity < threshold) {
                 darkHistCounter++;
-                if(darkHistCounter > 300){
+                if (darkHistCounter > 300) {
                     viewer.setDrawRGB(false);
                     darkHistCounter = 0;
-                }
-            }else if(histIntensity > threshold){
-                darkHistCounter = 0;
-                lightHistCounter++;
-                if(lightHistCounter > 300){
-                    viewer.setDrawRGB(true);
-                    lightHistCounter = 0;
                 }
             }
         }

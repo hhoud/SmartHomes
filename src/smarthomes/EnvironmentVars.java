@@ -5,6 +5,8 @@
 package smarthomes;
 
 import java.awt.Component;
+import smarthomes.events.SwapView;
+import smarthomes.events.SwapViewEvent;
 
 /**
  *
@@ -18,7 +20,8 @@ public class EnvironmentVars extends Component {
     private byte[] detectedFace = null;
     private int[] personPosition = new int[3];
     private double histIntensity = 0;
-
+      //Setup listeners for incoming data
+     private   SwapView sv = new SwapView();
     private EnvironmentVars() {
     }
 
@@ -41,6 +44,7 @@ public class EnvironmentVars extends Component {
      */
     public void setLightValue(String lightValue) {
         this.lightValue = lightValue;
+        sv.fireMyEvent(new SwapViewEvent(lightValue));
     }
 
     /**
@@ -97,5 +101,19 @@ public class EnvironmentVars extends Component {
      */
     public void setHistIntensity(double histIntensity) {
         this.histIntensity = histIntensity;
+    }
+
+    /**
+     * @return the sv
+     */
+    public SwapView getSv() {
+        return sv;
+    }
+
+    /**
+     * @param sv the sv to set
+     */
+    public void setSv(SwapView sv) {
+        this.sv = sv;
     }
 }
