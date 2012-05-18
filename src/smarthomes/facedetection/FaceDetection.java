@@ -17,7 +17,7 @@ import static com.googlecode.javacv.cpp.opencv_highgui.*;
 public class FaceDetection {
  
     // The cascade definition to be used for detection.
-    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt2.xml";
+    private static final String CASCADE_FILE_FACES = "../../OpenCV-2.3.1/data/haarcascades/haarcascade_frontalface_alt.xml";
     
     private IplImage grayImage, originalImage;
     private CvMemStorage storage;
@@ -45,7 +45,7 @@ public class FaceDetection {
         // We instantiate a classifier cascade to be used for detection, using the cascade definition.
         cascade = new CvHaarClassifierCascade(cvLoad(CASCADE_FILE_FACES));
         // We detect the faces.
-        faces = cvHaarDetectObjects(grayImage, cascade, storage, 1.25, 3, CV_HAAR_DO_CANNY_PRUNING,cvSize(20, 20),cvSize(0, 0));
+        faces = cvHaarDetectObjects(grayImage, cascade, storage, 1.05, 1, CV_HAAR_DO_CANNY_PRUNING,cvSize(40, 40),cvSize(0, 0));
         
         //We iterate over the discovered faces and draw yellow rectangles around them.
         for (int i = 0; i < faces.total(); i++) {

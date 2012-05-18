@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.JFrame;
@@ -64,17 +65,15 @@ public class UserTrackerApplication {
             public void keyPressed(KeyEvent arg0) {
                 if (arg0.getKeyCode() == KeyEvent.VK_ESCAPE) {
                     shouldRun = false;
-                } /*else if (arg0.getKeyCode() == KeyEvent.VK_I) {
-                    if (drawRGB) {
-                        drawRGB = false;
-                        viewer.setDrawRGB(drawRGB);
+                } else if (arg0.getKeyCode() == KeyEvent.VK_I) {
+                    if (viewer.isDrawRGB()) {
+                        viewer.setDrawRGB(false);
                     }
                 } else if (arg0.getKeyCode() == KeyEvent.VK_R) {
-                    if (!drawRGB) {
-                        drawRGB = true;
-                        viewer.setDrawRGB(drawRGB);
+                    if (!viewer.isDrawRGB()) {
+                        viewer.setDrawRGB(true);
                     }
-                }*/
+                }
             }
         });
     }
@@ -92,12 +91,14 @@ public class UserTrackerApplication {
 
             //Setup for communication
             setupListeners();
-            setupService();
+            //setupService();
 
-            Thread.sleep(40000);
+            Thread.sleep(0000);
 
             //Run the kinect
             app.viewer = new UserTracker();
+            //TODO: Remove this line when connected to the Server
+            app.viewer.setDrawRGB(true);
             f.add("Center", app.viewer);
             f.pack();
             f.setVisible(true);
@@ -132,7 +133,7 @@ public class UserTrackerApplication {
             //get IP address from this machine
 
             //Create broadcast message
-            String broadcast_msg = "Sensor online, MACHash=" + macHash + ", IP=192.168.2.8";
+            String broadcast_msg = "Sensor online, MACHash=" + macHash + ", IP=" + getIP();
             //Create broadcast packet
             DatagramPacket broadcast_packet = new DatagramPacket(broadcast_msg.getBytes(), broadcast_msg.getBytes().length, InetAddress.getByName("255.255.255.255"), 15000);
             //Send Broadcast packet
@@ -141,6 +142,17 @@ public class UserTrackerApplication {
         } catch (IOException ex) {
             Logger.getLogger(UserTrackerApplication.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+
+    private static String getIP() {
+        InetAddress addr;
+        try {
+            addr = InetAddress.getLocalHost();
+            return addr.getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     private static void setupListeners() {

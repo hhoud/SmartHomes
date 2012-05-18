@@ -46,6 +46,7 @@ import java.nio.ByteBuffer;
 import javax.imageio.ImageIO;
 import smarthomes.facedetection.AdvancedFaceDetection;
 import smarthomes.facedetection.EyeDetection;
+import smarthomes.facedetection.FaceDetection;
 
 public class UserTracker extends Component {
 
@@ -160,21 +161,21 @@ public class UserTracker extends Component {
     private int width, height, left = 0, top = 0, right = 0, bottom = 0, imgWidth, imgHeight, counter, x = 0, y = 0;
 
     public UserTracker() {
-        setDrawRGB(drawRGB);
+        //setDrawRGB(drawRGB);
     }
 
     public void setDrawRGB(boolean drawRGB) {
         try {
             System.out.println("Drawing RGB: "+drawRGB);
+            if (context != null) {
+                context.stopGeneratingAll();
+            }
             this.drawRGB = drawRGB;
             mapMode = new MapOutputMode(640, 480, 30);
             if (highRes) {
                 imgMapMode = new MapOutputMode(1280, 1024, 15);
             } else {
                 imgMapMode = new MapOutputMode(640, 480, 30);
-            }
-            if (context != null) {
-                context.stopGeneratingAll();
             }
             context = new Context();
             License license = new License("PrimeSense", "0KOIk2JeIBYClPWVnMoRKn5cdY4=");
@@ -333,7 +334,8 @@ public class UserTracker extends Component {
 
     void updateDepth() {
         try {
-            context.waitAnyUpdateAll();
+            //context.waitAnyUpdateAll();
+            context.waitNoneUpdateAll();
 
             DepthMetaData depthMD = depthGen.getMetaData();
             SceneMetaData sceneMD = userGen.getUserPixels(0);
@@ -495,8 +497,13 @@ public class UserTracker extends Component {
             AdvancedFaceDetection fdetect = new AdvancedFaceDetection();
             result = fdetect.detectFaces(iplCrop, isDrawRGB());
         } else {
-            EyeDetection edetect = new EyeDetection();
-            result = edetect.detectEyes(iplRgbImage, isDrawRGB());
+            if(isDrawRGB()){
+                EyeDetection edetect = new EyeDetection();
+                result = edetect.detectEyes(iplRgbImage, isDrawRGB());
+            }else{
+                FaceDetection fdetect = new FaceDetection();
+                result = fdetect.detectFaces(iplRgbImage, isDrawRGB());
+            }
         }
 
         iplCrop = (IplImage) result.get("image");

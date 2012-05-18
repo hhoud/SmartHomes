@@ -4,17 +4,11 @@
  */
 package smarthomes;
 
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
-import java.net.URLConnection;
-import java.nio.CharBuffer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.net.UnknownHostException;
 
 //the real (http) serverclass
 //it extends thread so the server is run in a different
@@ -22,7 +16,7 @@ import java.util.logging.Logger;
 //it's really just a macho coding thing.
 public class Webserver extends Thread {
 
-    private String ip = "192.168.2.8";
+    private String ip = "";
     String value;
 
     //the constructor method
@@ -31,7 +25,7 @@ public class Webserver extends Thread {
     //the gui, this is to pass messages to our nice interface
     public Webserver(int listen_port) {
         port = listen_port;
-
+        ip = getIP();
         //this makes a new thread, as mentioned before,it's to keep gui in
         //one thread, server in another. You may argue that this is totally
         //unnecessary, but we are gonna have this on the web so it needs to
@@ -43,6 +37,17 @@ public class Webserver extends Thread {
         //one client access the server, ex if it transferres a big file the
         //client have to wait real long before it gets any response.
         this.start();
+    }
+    
+    private static String getIP() {
+        InetAddress addr;
+        try {
+            addr = InetAddress.getLocalHost();
+            return addr.getHostAddress();
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        return "";
     }
 
     private void s(String s2) { //an alias to avoid typing so much!
